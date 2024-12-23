@@ -1,9 +1,11 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+
 const app = express();
 const port = process.env.PORT || 5000;
+
 app.use(cors());
 app.use(express.json());
 
@@ -20,10 +22,29 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
-    // await client.connect();
-    // Send a ping to confirm a successful connection
-    // await client.db("admin").command({ ping: 1 });
+    const carsCollection = client.db("carDB").collection("car");
+
+    // Fetch all cars with optional filtering
+    app.get("/cars", async (req, res) => {
+      const { carModel, location } = req.query;
+
+      const query = {};
+      if (carModel) query.carModel = carModel; 
+      if (location) query.location = location; 
+
+      const cars = await carsCollection.find(query).toArray();
+      res.send(cars);
+    });
+
+    // Add a new car
+    app.post("/cars", async (req, res) => {
+      const newCar = req.body;
+      const result = await carsCollection.insertOne(newCar);
+      res.send(result);
+    });
+
+    
+
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
@@ -37,6 +58,7 @@ run().catch(console.dir);
 app.get("/", (req, res) => {
   res.send("Rentify Cars Server is Running");
 });
+
 app.listen(port, () => {
   console.log(`Rentify Cars Server Is Running On port: ${port}`);
 });
