@@ -29,8 +29,8 @@ async function run() {
       const { carModel, location } = req.query;
 
       const query = {};
-      if (carModel) query.carModel = carModel; 
-      if (location) query.location = location; 
+      if (carModel) query.carModel = carModel;
+      if (location) query.location = location;
 
       const cars = await carsCollection.find(query).toArray();
       res.send(cars);
@@ -43,7 +43,23 @@ async function run() {
       res.send(result);
     });
 
-    
+    // To get all car by a specific user myCars
+    app.get("/myCars", async (req, res) => {
+      const email = req.query.email;
+      const query = { email: email };
+      const cursor = carsCollection.find(query);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+    //Delete myCars
+    app.delete("/myCars/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await carsCollection.deleteOne(query);
+      res.send(result);
+    });
+    // Update myCars
+   
 
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
