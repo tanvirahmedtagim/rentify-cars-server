@@ -97,7 +97,11 @@ async function run() {
       const bookingItems = req.body;
       const result = await bookingCollection.insertOne(bookingItems);
 
-      
+      const filter = { _id: new ObjectId(bookingItems.carId) };
+      const update = {
+        $inc: { bookingCount: 1 },
+      };
+      const updateBookingCount = await carsCollection.updateOne(filter, update);
       res.send(result);
     });
 
