@@ -23,6 +23,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     const carsCollection = client.db("carDB").collection("car");
+    const bookingCollection = client.db("carDB").collection("myBooking");
 
     // Fetch all cars with optional filtering
     app.get("/cars", async (req, res) => {
@@ -59,7 +60,48 @@ async function run() {
       res.send(result);
     });
     // Update myCars
-   
+    app.patch("/myCars/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const options = { upsert: false };
+      const updateCar = req.body;
+
+      const car = {
+        $set: {
+          carModel: updateCar.carModel,
+          rentalPrice: updateCar.rentalPrice,
+          availability: updateCar.availability,
+          registrationNumber: updateCar.registrationNumber,
+          features: updateCar.features,
+          description: updateCar.description,
+          imageUrl: updateCar.imageUrl,
+          location: updateCar.location,
+        },
+      };
+
+      const result = await carsCollection.updateOne(query, car, options);
+      res.send(result);
+    });
+
+    //for car details
+    app.get("/cars/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await carsCollection.findOne(query);
+      res.send(result);
+    });
+
+    //For My Bookings
+    // Add to booking
+    app.post("/myBooking", async (req, res) => {
+      const bookingItems = req.body;
+      const result = await bookingCollection.insertOne(bookingItems);
+
+      
+      res.send(result);
+    });
+
+  
 
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
