@@ -101,7 +101,14 @@ async function run() {
       res.send(result);
     });
 
-  
+    // Get user's bookings
+    app.get("/myBooking", async (req, res) => {
+      const email = req.query.email;
+      const query = { email: email };
+      const cursor = bookingCollection.find(query);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
 
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
