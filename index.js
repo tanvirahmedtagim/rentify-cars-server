@@ -67,7 +67,7 @@ async function run() {
     app.get("/logout", async (req, res) => {
       res
         .clearCookie("token", {
-          maxAge: 0,
+          httpOnly: true,
           secure: process.env.NODE_ENV === "production",
           sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
         })
