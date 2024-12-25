@@ -8,7 +8,7 @@ const app = express();
 const port = process.env.PORT || 5000;
 
 const corsOptions = {
-  origin: ["http://localhost:5173"],
+  origin: ["http://localhost:5173", "https://rentify-cars.netlify.app"],
   credentials: true,
   optionalSuccessStatus: 200,
 };
@@ -93,6 +93,21 @@ async function run() {
       res.send(result);
     });
 
+    //Home route car show
+
+    app.get("/cars/recent", async (req, res) => {
+      try {
+        const recentCars = await carsCollection
+          .find()
+          .sort({ _id: -1 })
+          .limit(8)
+          .toArray();
+        res.send(recentCars);
+      } catch (error) {
+        res.status(500).send({ error: "Failed to fetch recent cars" });
+      }
+    });
+
     // To get all car by a specific user myCars
     app.get("/myCars/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
@@ -169,30 +184,34 @@ async function run() {
       res.send(result);
     });
 
-    // Update booking status and date
+    // Update Booking Endpoint
     app.put("/myBooking/:id", verifyToken, async (req, res) => {
       const { id } = req.params;
-      const updatedData = req.body;
+      const { bookingStatus, startDate, endDate, totalCost } = req.body;
+
+      // Ensure all required fields are included
+      if (!bookingStatus || !startDate || !endDate || !totalCost) {
+        return res.status(400).send({ error: "Missing required fields" });
+      }
 
       try {
-        // Ensure the ID is a valid ObjectId
         const filter = { _id: new ObjectId(id) };
-
-        // Use $set to update specific fields
         const update = {
-          $set: updatedData,
+          $set: {
+            bookingStatus,
+            startDate,
+            endDate,
+            totalCost,
+          },
         };
 
-        // Update the booking in the collection
         const result = await bookingCollection.updateOne(filter, update);
 
         if (result.matchedCount === 0) {
           return res.status(404).send({ error: "Booking not found" });
         }
 
-        res
-          .status(200)
-          .send({ message: "Booking updated successfully", result });
+        res.status(200).send({ message: "Booking updated successfully" });
       } catch (error) {
         console.error("Error updating booking:", error);
         res.status(500).send({ error: "Failed to update booking" });
