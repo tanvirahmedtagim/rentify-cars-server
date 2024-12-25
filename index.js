@@ -1,13 +1,21 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
+const jwt = require("jsonwebtoken");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
-
+const cookieParser = require("cookie-parser");
 const app = express();
 const port = process.env.PORT || 5000;
 
-app.use(cors());
+const corsOptions = {
+  origin: ["http://localhost:5173"],
+  credentials: true,
+  optionalSuccessStatus: 200,
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
+app.use(cookieParser());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.ez7m5.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -20,10 +28,51 @@ const client = new MongoClient(uri, {
   },
 });
 
+// verifyToken
+const verifyToken = (req, res, next) => {
+  const token = req.cookies?.token;
+  if (!token) return res.status(401).send({ message: "unauthorized access" });
+  jwt.verify(token, process.env.SECRET_KEY, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ message: "unauthorized access" });
+    }
+    req.user = decoded;
+  });
+
+  next();
+};
+
 async function run() {
   try {
     const carsCollection = client.db("carDB").collection("car");
     const bookingCollection = client.db("carDB").collection("myBooking");
+
+    //generate jwt
+    app.post("/jwt", async (req, res) => {
+      const email = req.body;
+      //create token
+      const token = jwt.sign(email, process.env.SECRET_KEY, {
+        expiresIn: "365d",
+      });
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+        })
+        .send({ success: true });
+    });
+
+    // logout || clear cookie from browser
+    app.get("/logout", async (req, res) => {
+      res
+        .clearCookie("token", {
+          maxAge: 0,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+        })
+        .send({ success: true });
+    });
 
     // Fetch all cars with optional filtering
     app.get("/cars", async (req, res) => {
@@ -45,8 +94,11 @@ async function run() {
     });
 
     // To get all car by a specific user myCars
-    app.get("/myCars", async (req, res) => {
-      const email = req.query.email;
+    app.get("/myCars/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      const decodedEmail = req.user?.email;
+      if (decodedEmail !== email)
+        return res.status(401).send({ message: "unauthorized access" });
       const query = { email: email };
       const cursor = carsCollection.find(query);
       const result = await cursor.toArray();
@@ -60,7 +112,7 @@ async function run() {
       res.send(result);
     });
     // Update myCars
-    app.patch("/myCars/:id", async (req, res) => {
+    app.patch("/myCars/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const options = { upsert: false };
@@ -84,7 +136,7 @@ async function run() {
     });
 
     //for car details
-    app.get("/cars/:id", async (req, res) => {
+    app.get("/cars/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await carsCollection.findOne(query);
@@ -106,12 +158,45 @@ async function run() {
     });
 
     // Get user's bookings
-    app.get("/myBooking", async (req, res) => {
-      const email = req.query.email;
+    app.get("/myBooking/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      const decodedEmail = req.user?.email;
+      if (decodedEmail !== email)
+        return res.status(401).send({ message: "unauthorized access" });
       const query = { email: email };
       const cursor = bookingCollection.find(query);
       const result = await cursor.toArray();
       res.send(result);
+    });
+
+    // Update booking status and date
+    app.put("/myBooking/:id", verifyToken, async (req, res) => {
+      const { id } = req.params;
+      const updatedData = req.body;
+
+      try {
+        // Ensure the ID is a valid ObjectId
+        const filter = { _id: new ObjectId(id) };
+
+        // Use $set to update specific fields
+        const update = {
+          $set: updatedData,
+        };
+
+        // Update the booking in the collection
+        const result = await bookingCollection.updateOne(filter, update);
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ error: "Booking not found" });
+        }
+
+        res
+          .status(200)
+          .send({ message: "Booking updated successfully", result });
+      } catch (error) {
+        console.error("Error updating booking:", error);
+        res.status(500).send({ error: "Failed to update booking" });
+      }
     });
 
     console.log(
