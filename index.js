@@ -7,13 +7,17 @@ const cookieParser = require("cookie-parser");
 const app = express();
 const port = process.env.PORT || 5000;
 
-const corsOptions = {
-  origin: ["https://rentify-cars.netlify.app", "http://localhost:5173"],
-  credentials: true,
-  optionalSuccessStatus: 200,
-};
+// const corsOptions = {
+//   origin: ["https://rentify-cars.netlify.app", "http://localhost:5173"],
 
-app.use(cors(corsOptions));
+// };
+
+app.use(
+  cors({
+    origin: ["https://rentify-cars.netlify.app", "http://localhost:5173"],
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(cookieParser());
 
@@ -27,6 +31,12 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
+
+const cookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+};
 
 // verifyToken
 const verifyToken = (req, res, next) => {
@@ -54,22 +64,17 @@ async function run() {
       const token = jwt.sign(email, process.env.SECRET_KEY, {
         expiresIn: "365d",
       });
-      res
-        .cookie("token", token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-        })
-        .send({ success: true });
+      res.cookie("token", token, cookieOptions).send({ success: true });
     });
 
     // logout || clear cookie from browser
-    app.get("/logout", async (req, res) => {
+    app.post("/logout", async (req, res) => {
+      console.log("sfgdfg");
       res
         .clearCookie("token", {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+          maxAge: 0,
+
+          ...cookieOptions,
         })
         .send({ success: true });
     });
