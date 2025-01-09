@@ -14,7 +14,11 @@ const port = process.env.PORT || 5000;
 
 app.use(
   cors({
-    origin: ["https://rentify-cars.netlify.app", "http://localhost:5173"],
+    origin: [
+      "https://rentify-cars.netlify.app",
+      "http://localhost:5173",
+      "http://localhost:5174",
+    ],
     credentials: true,
   })
 );
@@ -69,7 +73,6 @@ async function run() {
 
     // logout || clear cookie from browser
     app.post("/logout", async (req, res) => {
-      console.log("sfgdfg");
       res
         .clearCookie("token", {
           maxAge: 0,
